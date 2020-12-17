@@ -1,8 +1,12 @@
-#Парсинг krisha.kz version 1.1 made by Ara
+#Парсинг krisha.kz version 1.2 made by Ara
 import requests
-
 import pandas as pd
 from bs4 import BeautifulSoup
+import re
+from numpy import nan as Nan
+import datetime
+
+
 
 #некоторые сайты могут подумать что ты бот и лучше добавить через какой браузер заходишь
 headers = requests.utils.default_headers()
@@ -10,119 +14,199 @@ headers.update({
     'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0',
 })
 #указываем сколько страниц нам нужно 
-number_of_pages=4500
+number_of_pages = 3
+counter = 0
+dt_started = datetime.datetime.utcnow()
+
+
 
 #создаем отдельные датафреймы чтобы в конце их соединить в одно
-df1 = pd.DataFrame(columns=['комнаты'])
-df2 = pd.DataFrame(columns=['цена'])
-df3 = pd.DataFrame(columns=['район'])
-df4 = pd.DataFrame(columns=['город'])
-df5 = pd.DataFrame(columns=['url'])
+rooms_list = pd.DataFrame(columns=['кол-во комнат'])
+square_list = pd.DataFrame(columns=['площадь'])
+floor_list = pd.DataFrame(columns=['этаж'])
+max_floor_list = pd.DataFrame(columns=['макс этажей'])
+price_list = pd.DataFrame(columns=['цена'])
+district_list = pd.DataFrame(columns=['район'])
+street_list = pd.DataFrame(columns=['улица'])
+material_list = pd.DataFrame(columns=['из чего сделан дом'])
+age_list = pd.DataFrame(columns=['год постройки'])
+city_list = pd.DataFrame(columns=['город'])
+ceiling_list = pd.DataFrame(columns=['потолки'])
+date_of_inserting_list = pd.DataFrame(columns=['дата объявления'])####
+views_list = pd.DataFrame(columns=['кол-во просмотров'])####
+url_list = pd.DataFrame(columns=['ссылка'])
+toilet_list = pd.DataFrame(columns=['санузел'])
+green_price_list = pd.DataFrame(columns=['цена за кв м'])###
+blue_price_list = pd.DataFrame(columns=['цена в районе'])###
+red_price_list = pd.DataFrame(columns=['цена в похожих'])###
+status_list = pd.DataFrame(columns=['состояние'])
+balcony_list = pd.DataFrame(columns=['балкон'])
+zhk_list = pd.DataFrame(columns=['ЖК'])
 
+def hasNumbers(inputString):
+    return bool(re.search(r'\d', inputString))
 
-df7 = pd.DataFrame(columns=['дом'])
-df8 = pd.DataFrame(columns=['этаж'])
-df9 = pd.DataFrame(columns=['Площадь'])
-df10 = pd.DataFrame(columns=['Жилой комплекс'])
-df11 = pd.DataFrame(columns=['Санузел'])
-df12 = pd.DataFrame(columns=['Потолки'])
-
-df13 = pd.DataFrame(columns=['цена за кв'])
-df14 = pd.DataFrame(columns=['срд цена в районе'])
-df15 = pd.DataFrame(columns=['срд цена в грд'])
-x=1
 #цикл для количество страниц
+
 for x in range(number_of_pages):
-
-    #указываем какой сайт будем скрапить. ПЫСЫ лучше указать уже с фильтрами 
-    #но лучше выбрать уже вторую страницу и в URL копирнуть ссылку
-    #далее находим в нем '?page=2' и здесь просто заменям на '?page={}' и дальше пишем путь
-
-
-
-    page = requests.get('https://krisha.kz/prodazha/kvartiry/?page={}'.format(x), headers=headers)
-    
+    page = requests.get('https://krisha.kz/prodazha/kvartiry/almaty/?page={}'.format(x), headers=headers)
     #просто каунт++ страницы
     x=x+1
     # Create a BeautifulSoup object
     soup = BeautifulSoup(page.text, 'html.parser')
+    name_data = soup.find_all('a', {'class':'a-card__title'})
+    price_data = soup.find_all('div',{'class':'a-card__price'})
+    rayon_data = soup.find_all('div',{'class':'a-card__subtitle'})
+    url_data = soup.find_all('a', {'class':'a-card__title'})
+    stats_data = soup.find_all('div',{'class':'card-stats__item'})
     
-    #находим какие классы нам нужны
-    name_of_room_list = soup.find_all('a', {'class':'a-card__title'})
-    price_of_room_list = soup.find_all('div',{'class':'a-card__price'})
-    rayon_of_room_list = soup.find_all('div',{'class':'a-card__subtitle'})
-    city_of_room_list = soup.find_all('div',{'class':'card-stats'})
-    url_of_room_list = soup.find_all('a', {'class':'a-card__title'})
-    # здесь уже начинаем в каждый датафрейм записывать данные
-    for room in name_of_room_list:
-        a=room.text[:1]
-        
-        row1={'комнаты':a}
-        
-        df1=df1.append(row1,ignore_index=True)
-    for price in price_of_room_list:
-        b=price.text
-        row2={'цена':b}
-        df2=df2.append(row2,ignore_index=True)
-    for rayon in rayon_of_room_list:
-        c=rayon.text
-        row3={'район':c}
-        df3=df3.append(row3,ignore_index=True)
-    for city in city_of_room_list:
-        #тут такая проблема что card-stats__item повторяется 3 раза и мне пришлось сделать find,
-        #так как он берет ТОЛЬКО первое значение, и мне повезло что город первый по списку
-        d=city.find("div", {"class": "card-stats__item",}).get_text().strip()
-        row4={'город':d}
-        df4=df4.append(row4,ignore_index=True)
-    for url in url_of_room_list:
-        e='https://krisha.kz{}'.format(url['href'])
-        row5={'url':e}
-        df5=df5.append(row5,ignore_index=True)
-    
+    for i in name_data:
+        rooms = i.text[:1]
+        square = i.text.split(",")[1].split(' ')[1]
+        row1={'кол-во комнат':rooms}
+        rooms_list=rooms_list.append(row1,ignore_index=True)
+        row2={'площадь':square}
+        square_list=square_list.append(row2,ignore_index=True)
+    for i in price_data:
+        price = ''.join((ch if ch in '0123456789.-e' else ' ') for ch in i.text).replace(" ", "")
+        row3={'цена':price}
+        price_list=price_list.append(row3,ignore_index=True)
+    for i in rayon_data:
+        distict=i.text.split(",")[0].replace(" ", "").replace('\n','')
+        street = i.text.split(",")[-1].replace(" ", "").replace('\n','')
+        if 'р-н' in  distict:
+            row4={'район':distict.replace('р-н','')}
+            district_list=district_list.append(row4,ignore_index=True)
+        else:
+            district_list=district_list.append({'район':pd.Series(Nan)},ignore_index=True)
+        row5={'улица':street}
+        street_list=street_list.append(row5,ignore_index=True)
+    for i in url_data:
+        url='https://krisha.kz{}'.format(i['href'])
+        row6={'ссылка':url}
+        url_list=url_list.append(row6,ignore_index=True)
 
-for index, row in df5.iterrows():
-    a=row['url']
-
-#single_page = requests.get('{}'.format(a), headers=headers)
+        
+        
+#################
+for index, row in url_list.iterrows():
+    a=row['ссылка']
     single_page = requests.get(a, headers=headers)
-    single_soup = BeautifulSoup(single_page.text, 'html.parser')
+    single_soup = BeautifulSoup(single_page.text, 'lxml')
+    ###
+    ceiling = single_soup.find_all('div',{'data-name':'ceiling'})
+    building = single_soup.find_all('div',{'data-name':'flat.building'})
+    floors = single_soup.find_all('div',{'data-name':'flat.floor'})
+    toilets = single_soup.find_all('div',{'data-name':'flat.toilet'})
+    balcons = single_soup.find_all('div',{'data-name':'flat.balcony'})
+    statuss = single_soup.find_all('div',{'data-name':'flat.renovation'})
+    zk = single_soup.find_all('div',{'data-name':'map.complex'})
+    city_data = single_soup.find_all('div',{'class':'offer__location offer__advert-short-info'})
     
-    ceiling_of_room_list = single_soup.find_all('div',{'data-name':'ceiling'})
-    for ceiling in ceiling_of_room_list:
-        clg=ceiling.find("div", {"class": "offer__advert-short-info",}).text
-        row12={'Потолки':clg}
-        df12=df12.append(row12,ignore_index=True)
-    building_of_room_list = single_soup.find_all('div',{'data-name':'flat.building'})
-    for building in building_of_room_list:
-        build=building.find("div", {"class": "offer__advert-short-info",}).text
-        row7={'дом':build}
-        df7=df7.append(row7,ignore_index=True)
-    floor_of_room_list = single_soup.find_all('div',{'data-name':'flat.floor'})
-    for floor in floor_of_room_list:
-        flr=floor.find("div", {"class": "offer__advert-short-info",}).text
-        row8={'этаж':flr}
-        df8=df8.append(row8,ignore_index=True)
-    square_of_room_list = single_soup.find_all('div',{'data-name':'live.square'})
-    for square in square_of_room_list:
-        sqr=square.find("div", {"class": "offer__advert-short-info",}).text
-        row9={'Площадь':sqr}
-        df9=df9.append(row9,ignore_index=True)  
-    complex_of_room_list = single_soup.find_all('div',{'data-name':'map.complex'})
-    for complex in complex_of_room_list:
-        cmx=complex.find("div", {"class": "offer__advert-short-info",}).text
-        row10={'Жилой комплекс':cmx}
-        df10=df10.append(row10,ignore_index=True)
-    toilet_of_room_list = single_soup.find_all('div',{'data-name':'flat.toilet'})
-    for toilet in toilet_of_room_list:
-        tlt=toilet.find("div", {"class": "offer__advert-short-info",}).text
-        row11={'Санузел':tlt}
-        df11=df11.append(row11,ignore_index=True)
-   
-        
-    #просто создаем лист ВСЕХ датафреймов и конкатинируем между собой
-    pdList = [df1, df2, df3, df4, df7, df8, df9, df10, df11,df12]  # List of your dataframes
-    new_df = pd.concat(pdList, axis=1, sort=False)
+    if ceiling:
+        for ceil in ceiling:
+            clg=ceil.find("div", {"class": "offer__advert-short-info",}).text.replace(' м','')
+            row7={'потолки':clg}
+            ceiling_list=ceiling_list.append(row7,ignore_index=True)
+    else:
+        ceiling_list=ceiling_list.append({'потолки':'пусто'},ignore_index=True)
+    if building:
+        for build in building:
+            bld=build.find("div", {"class": "offer__advert-short-info",}).text
+            if hasNumbers(bld.split(",")[0]):
+                row={'из чего сделан дом':'пусто'}
+                material_list=material_list.append(row, ignore_index=True)
+                age=bld.split(",")[0].replace(' г.п.','')
+                row9={'год постройки':age}
+                age_list=age_list.append(row9,ignore_index=True)
+            else:
+                age_1=bld.split(",")[1].replace(' г.п.','')
+                row10={'год постройки':age_1}
+                age_list=age_list.append(row10,ignore_index=True)
+                material_1=bld.split(",")[0]
+                row11={'из чего сделан дом':material_1}
+                material_list=material_list.append(row11,ignore_index=True)
+    else:
+        age_list=age_list.append({'год постройки':'пусто'},ignore_index=True)
+        material_list=material_list.append({'из чего сделан дом':'пусто'},ignore_index=True)
+    if floors:
+        for floor in floors:
+            flr=floor.find("div", {"class": "offer__advert-short-info",}).text
+            if 'из' in flr:
+                row12={'этаж':flr.split(' ')[0]}
+                floor_list=floor_list.append(row12,ignore_index=True)
+                row13={'макс этажей':flr.split(' ')[2]}
+                max_floor_list=max_floor_list.append(row13,ignore_index=True)
+            else:
+                floor_list=floor_list.append({'этаж':'пусто'}, ignore_index=True)
+                max_floor_list=max_floor_list.append({'макс этажей':'пусто'}, ignore_index=True)
+    else:
+        floor_list=floor_list.append({'этаж':pd.Series(Nan)}, ignore_index=True)
+        max_floor_list=max_floor_list.append({'макс этажей':'пусто'}, ignore_index=True)
+    if toilets:
+        for toiler in toilets:
+            tl=toiler.find("div", {"class": "offer__advert-short-info",}).text
+            row14={'санузел':tl}
+            toilet_list=toilet_list.append(row14,ignore_index=True)
+    else:
+        toilet_list=toilet_list.append({'санузел':'пусто'},ignore_index=True)
+    if balcons:
+        for balcon in balcons:
+            blc=balcon.find("div", {"class": "offer__advert-short-info",}).text
+            row15={'балкон':blc}
+            balcony_list = balcony_list.append(row15,ignore_index=True)
+    else:
+        balcony_list=balcony_list.append({'балкон':'пусто'}, ignore_index=True)
+    if statuss:
+        for status in statuss:
+            st=status.find("div", {"class": "offer__advert-short-info",}).text
+            row17={'состояние':st}
+            status_list=status_list.append(row17,ignore_index=True)
+    else:
+        status_list=status_list.append({'состояние':'пусто'}, ignore_index=True)
+    if zk:
+        for z in zk:
+            zhhk=z.find("div", {"class": "offer__advert-short-info",}).text
+            row18={'ЖК':zhhk}
+            zhk_list=zhk_list.append(row18,ignore_index=True)
+    else:
+        zhk_list=zhk_list.append({'ЖК':'пусто'}, ignore_index=True)
+    if city_data:
+        for city in city_data:
+            ct = city.text.split(' ')[0].replace('показать','').replace('\r', '').replace('\n', '').replace(',','')
+            row19={'город':ct}
+            city_list=city_list.append(row19,ignore_index=True)
+    else:
+        city_list=city_list.append({'город':'пусто'}, ignore_index=True)
+    #for green in green_data:
+       # print(green)
+    counter = counter + 1
+    perc = (counter*100)/(number_of_pages*20)
+    print(perc,'%')
 
-    new_df.to_csv('krisha.csv', sep='\t', encoding='utf-8')
-    new_df
-    #https://krisha.kz/prodazha/kvartiry/almaty/?page=2
+pdList = [rooms_list,\
+square_list,\
+floor_list,\
+max_floor_list,\
+price_list,\
+district_list,\
+street_list,\
+material_list,\
+age_list,\
+city_list,\
+ceiling_list,\
+#date_of_inserting_list,\
+#views_list,\
+url_list,\
+toilet_list,\
+#green_price_list,\
+#blue_price_list,\
+#red_price_list,\
+status_list,\
+balcony_list,\
+zhk_list]
+
+new_df = pd.concat(pdList, axis=1, sort=False)
+new_df.to_csv('test.csv', sep='\t', encoding='utf-8')
+dt_ended = datetime.datetime.utcnow()
+print((dt_ended - dt_started).total_seconds())
